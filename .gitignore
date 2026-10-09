@@ -14,3 +14,10 @@ chaos/results/
 .vscode/
 .idea/
 .DS_Store
+# Private keys and certificates
+id_rsa
+id_ed25519
+*.pem
+*.key
+*.p12
+*.pfx
