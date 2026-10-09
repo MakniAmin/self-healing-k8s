@@ -1,0 +1,16 @@
+# Local and sensitive files
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+kubeconfig
+.kube/
+
+# Generated experiment output
+chaos/results/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,29 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: app-network-loss
+  namespace: self-healing
+
+spec:
+  action: loss
+  mode: all
+  duration: "60s"
+  direction: to
+
+  selector:
+    namespaces:
+      - self-healing
+    labelSelectors:
+      run: network-test
+
+  loss:
+    loss: "50"
+    correlation: "0"
+
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - self-healing
+      labelSelectors:
+        app: self-healing-app

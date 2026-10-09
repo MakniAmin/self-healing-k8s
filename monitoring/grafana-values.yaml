@@ -1,0 +1,29 @@
+grafana:
+  persistence:
+    enabled: true
+    type: pvc
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  livenessProbe:
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6

@@ -1,0 +1,49 @@
+
+name: Self-Healing Kubernetes CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Kubernetes and application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required files
+        run: |
+          test -f app/Dockerfile
+          test -f app/index.html
+          test -f app/health
+          test -f k8s/namespace.yaml
+          test -f k8s/deployment.yaml
+          test -f k8s/service.yaml
+
+      - name: Validate Kubernetes manifests
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Check manifest syntax
+        run: |
+          kubectl apply --dry-run=client \
+            --validate=false -f k8s/namespace.yaml
+          kubectl apply --dry-run=client \
+            --validate=false -f k8s/deployment.yaml
+          kubectl apply --dry-run=client \
+            --validate=false -f k8s/service.yaml
+
+      - name: Build application image
+        run: |
+          docker build \
+            -t self-healing-app:${{ github.sha }} \
+            ./app

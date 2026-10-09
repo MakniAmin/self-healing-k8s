@@ -1,0 +1,16 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: app-pod-failure
+  namespace: self-healing
+
+spec:
+  action: pod-kill
+  mode: one
+
+  selector:
+    namespaces:
+      - self-healing
+
+    labelSelectors:
+      app: self-healing-app
