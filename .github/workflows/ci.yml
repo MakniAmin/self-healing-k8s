@@ -28,19 +28,19 @@ jobs:
           test -f k8s/deployment.yaml
           test -f k8s/service.yaml
 
-      - name: Validate Kubernetes manifests
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-
-      - name: Check manifest syntax
+      - name: Install Kubeconform
         run: |
-          kubectl apply --dry-run=client \
-            --validate=false -f k8s/namespace.yaml
-          kubectl apply --dry-run=client \
-            --validate=false -f k8s/deployment.yaml
-          kubectl apply --dry-run=client \
-            --validate=false -f k8s/service.yaml
+          curl -fsSLo /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubeconform -strict -summary \
+            k8s/namespace.yaml \
+            k8s/deployment.yaml \
+            k8s/service.yaml
 
       - name: Build application image
         run: |
