@@ -25,6 +25,10 @@ spec:
             matchLabels:
               app: self-healing-app
 
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
       tolerations:
         - key: "node.kubernetes.io/not-ready"
           operator: "Exists"
@@ -40,6 +44,16 @@ spec:
         - name: nginx
           image: self-healing-app:v2
           imagePullPolicy: IfNotPresent
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+                - SETUID
+                - SETGID
 
           ports:
             - containerPort: 80
