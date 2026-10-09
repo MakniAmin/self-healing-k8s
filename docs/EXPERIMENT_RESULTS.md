@@ -1,128 +1,94 @@
 # Chaos Experiment Results
 
-## Environment
+## 1. Environment
 
-- Kubernetes cluster: `devops-lab`
+- Kubernetes distribution: Kind
+- Cluster: `devops-lab`
 - Application namespace: `self-healing`
-- Application: Nginx
-- Deployment: `self-healing-app`
-- Desired replicas: 3
-- Chaos engineering tool: Chaos Mesh
+- Application: Nginx-based health-check application
+- Replicas: 3
+- Chaos testing: Chaos Mesh and custom test scripts
 - Monitoring: Prometheus and Grafana
 
-## 1. Pod failure
+## 2. Pod Failure
 
-**Objective:** Verify that Kubernetes replaces a failed application Pod and restores the desired replica count.
+Three recorded tests completed successfully.
 
-Recorded results in `pod-failure-results.csv`:
+| Run | Recovery time | Initial replicas | Final replicas | Result |
+|---|---:|---:|---:|---|
+| 1 | 6 s | 3 | 3 | PASS |
+| 2 | 6 s | 3 | 3 | PASS |
+| 3 | 6 s | 3 | 3 | PASS |
 
-| Measurement | Result |
-|---|---:|
-| Initial replicas | 3 |
-| Final replicas | 3 |
-| Recorded recovery time | 6 seconds |
+The Deployment maintained the desired replica count after the tested Pod failures.
 
-Three recorded runs report a recovery time of 6 seconds and a passing result.
+## 3. Node Failure and Recovery Optimization
 
-## 2. Node failure and recovery optimization
+The following measurements compare the original configuration with the optimized configuration using 60-second `NoExecute` tolerations.
 
-**Objective:** Measure the effect of node-failure toleration settings on application recovery.
-
-The following measurements are taken from the recorded runs in `node-failure-results-v4.csv`.
-
-| Measurement | Baseline run | Optimized run |
+| Metric | Baseline | Optimized |
 |---|---:|---:|
 | Failure detection | 52 s | 49 s |
 | Replacement Pod creation | 352 s | 109 s |
 | Replacement Pod Ready | 359 s | 115 s |
-| Ready after creation | 7 s | 6 s |
+| Ready after Pod creation | 7 s | 6 s |
 | Node restoration | 2 s | 2 s |
-| Result | PASS | PASS |
 
-The optimized run reduced the observed time until the replacement Pod became Ready from 359 seconds to 115 seconds.
+The observed time until the replacement Pod became Ready decreased from 359 seconds to 115 seconds, approximately a **68% reduction**.
 
-Percentage reduction:
+Calculation:
 
-\[
-\frac{359-115}{359}\times100 \approx 68\%
-\]
+`((359 - 115) / 359) × 100 ≈ 68%`
 
-This is an observed result from these two runs, not a guarantee of identical recovery times in other environments.
+The shorter tolerations improved recovery during the tested node-failure scenario. These results describe individual observed runs and are not a guarantee of identical recovery times in every environment.
 
-The Deployment uses 60-second `NoExecute` tolerations for the `node.kubernetes.io/not-ready` and `node.kubernetes.io/unreachable` taints. These settings affect eviction timing and involve a trade-off between faster recovery and tolerance of transient node connectivity problems.
+## 4. Application Health Failure
 
-## 3. Application health failure
+- Test: temporarily remove the application's health file.
+- Expected behavior: the `/health` probe fails, triggering container recovery through the configured liveness probe.
+- Observed recovery time: 36 seconds.
+- Container restart count: 2 → 3.
+- Result: PASS.
 
-**Objective:** Verify that a failing health endpoint causes Kubernetes to restart an unhealthy container.
+**Important:** The test cleanup restores the health file. Restarting the container alone does not necessarily restore a file removed from the container's writable layer.
 
-Recorded result in `app-health-failure-results.csv`:
+## 5. Network Packet Loss
 
-| Measurement | Result |
-|---|---:|
-| Initial container restarts | 2 |
-| Final container restarts | 3 |
-| Observed recovery time | 36 s |
-| Result | PASS |
+Chaos Mesh injected 50% packet loss for 60 seconds against the selected application traffic.
 
-During the experiment, the health endpoint returned HTTP 404 after the health file was moved. The liveness probe failed, and Kubernetes restarted the Nginx container.
+- Chaos injection and recovery: completed successfully.
+- Recorded HTTP 200 responses: 138.
+- Recorded failed requests: 0.
+- Average recorded latency: 1.044 ms.
+- Maximum recorded latency: 2.094 ms.
 
-The experiment cleanup restored the health file. Container restart alone does not restore a file removed from the container's writable layer.
+The traffic recorder did not label individual measurements as baseline, injection, or recovery phases. Therefore, these results confirm successful HTTP responses during the recorded window, but do not establish that packet loss had no impact on latency or availability during the injection phase.
 
-## 4. Network packet loss
+## 6. Container Process Failure
 
-**Objective:** Inject network packet loss and observe application traffic.
+The main Nginx process was terminated with `SIGTERM` in one application container.
 
-Chaos Mesh was configured to inject 50% packet loss for 60 seconds. The experiment status reported successful injection and recovery for the selected source and target Pods.
+- Container restart count: 3 → 4.
+- Time until Pod Ready was observed: 11 seconds.
+- Application replicas: 3.
+- Result: PASS.
 
-| Measurement | Result |
-|---|---:|
-| HTTP requests recorded | 138 |
-| HTTP 200 responses | 138 |
-| Recorded failed requests | 0 |
-| Average observed response time | 1.044 ms |
-| Maximum observed response time | 2.094 ms |
+The 11-second measurement includes command execution and polling overhead; it is not a pure measurement of Kubernetes recovery latency.
 
-All 138 recorded requests returned HTTP 200.
+## 7. CI/CD Deployment
 
-**Interpretation:** the application remained reachable during the observation window. The CSV does not label requests by baseline, injection, and recovery phases, so it does not establish the latency impact of packet loss specifically during fault injection.
+The GitHub Actions pipeline validates Kubernetes manifests, builds the application image, and deploys it to the local Kind cluster through a self-hosted runner.
 
-## 5. Container/process failure
+The successful pipeline run completed in approximately 51 seconds.
 
-**Objective:** Terminate the main process in one application container and observe Kubernetes recovery.
+Post-deployment verification showed:
 
-The Nginx container's main process was sent `SIGTERM`.
+- Deployment availability: 3/3 replicas.
+- Application Pods: Running.
+- Application health endpoint: HTTP 200.
 
-| Measurement | Result |
-|---|---:|
-| Initial restart count | 3 |
-| Final restart count | 4 |
-| Observed time until Ready condition | 11 s |
-| Final application replicas | 3 |
+## 8. Conclusion
 
-The container restart count increased from 3 to 4, and `kubectl wait` observed the Pod becoming Ready after 11 seconds.
+The experiments demonstrated Kubernetes recovery from tested Pod, node, application-health, and container-process failures. The node-failure comparison showed a substantial improvement after reducing the configured toleration period. Chaos Mesh network testing and Prometheus/Grafana monitoring provide additional tools for evaluating cluster behavior.
 
-This measurement includes command execution and polling overhead; it is not an exact measurement of container restart latency.
-
-## 6. CI/CD deployment verification
-
-The GitHub Actions workflow completed successfully in a recorded run.
-
-| Stage | Result |
-|---|---|
-| Required-file checks | Passed |
-| Kubernetes manifest validation | Passed |
-| Docker image build | Passed |
-| Image loading into Kind | Passed |
-| Kubernetes rollout verification | Passed |
-| Application health check | Passed |
-| Recorded workflow duration | 51 s |
-
-After deployment, the Kubernetes Deployment reported three available replicas. A separate HTTP request to the service health endpoint returned HTTP 200.
-
-## Conclusion
-
-The experiments demonstrate Kubernetes recovery from Pod, node, application-health, and container-process failures. The node-failure comparison showed approximately 68% lower observed time to replacement-Pod readiness after adjusting node-failure tolerations.
-
-The network experiment verified fault injection and recovery while all recorded HTTP requests succeeded, but phase-labeled traffic measurements are needed to quantify the impact of packet loss.
-
-The CI/CD workflow automates manifest validation, image building, deployment to the local Kind cluster, rollout verification, and application health checking.
+Future improvements include repeated node-failure trials, phase-labelled network measurements, automated experiment result collection, and more precise separation of detection, scheduling, startup, and readiness times.
