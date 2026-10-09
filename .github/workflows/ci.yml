@@ -47,3 +47,58 @@ jobs:
           docker build \
             -t self-healing-app:${{ github.sha }} \
             ./app
+
+  
+  deploy:
+    name: Deploy to Kind
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify local cluster
+        run: |
+          test "$(kubectl config current-context)" = "kind-devops-lab"
+          kind get clusters | grep -qx "devops-lab"
+          docker info >/dev/null
+
+      - name: Build versioned application image
+        run: |
+          IMAGE="self-healing-app:${GITHUB_SHA}"
+          docker build -t "$IMAGE" ./app
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Load image into Kind
+        run: |
+          kind load docker-image "$IMAGE" --name devops-lab
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/service.yaml
+
+          sed "s|image: self-healing-app:v2|image: ${IMAGE}|" \
+            k8s/deployment.yaml | kubectl apply -f -
+
+      - name: Wait for deployment rollout
+        run: |
+          kubectl rollout status deployment/self-healing-app \
+            -n self-healing --timeout=180s
+
+          kubectl get deployment self-healing-app -n self-healing
+          kubectl get pods -n self-healing
+
+      - name: Verify application health
+        run: |
+          kubectl run ci-health-check \
+            --namespace self-healing \
+            --image=curlimages/curl:8.12.1 \
+            --restart=Never \
+            --rm -i \
+            --command -- \
+            curl --fail --silent --show-error --max-time 10 \
+            http://self-healing-service/health
+
