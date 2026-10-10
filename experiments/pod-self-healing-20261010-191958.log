@@ -1,0 +1,17 @@
+Experiment started: 2026-10-10T19:19:58+01:00
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                                                      SELECTOR
+self-healing-app   3/3     3            3           11d   nginx        self-healing-app:d85c0bbf6368f40f8c1334b80b9a664a79f21dd4   app=self-healing-app
+NAME                                READY   STATUS    RESTARTS      AGE   IP           NODE                 NOMINATED NODE   READINESS GATES
+self-healing-app-57888f6c64-29pc5   1/1     Running   2 (24m ago)   24h   10.244.1.9   devops-lab-worker2   <none>           <none>
+self-healing-app-57888f6c64-cn6dm   1/1     Running   2 (24m ago)   24h   10.244.1.6   devops-lab-worker2   <none>           <none>
+self-healing-app-57888f6c64-sdqzg   1/1     Running   2 (24m ago)   24h   10.244.2.5   devops-lab-worker    <none>           <none>
+Pod selected for failure: self-healing-app-57888f6c64-29pc5
+Failure triggered at: 2026-10-10T19:20:37+01:00
+Recovery completed at: 2026-10-10T19:20:44+01:00
+Time until 3 replicas ready: 7 seconds
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                                                      SELECTOR
+self-healing-app   3/3     3            3           11d   nginx        self-healing-app:d85c0bbf6368f40f8c1334b80b9a664a79f21dd4   app=self-healing-app
+NAME                                READY   STATUS    RESTARTS      AGE   IP           NODE                 NOMINATED NODE   READINESS GATES
+self-healing-app-57888f6c64-cn6dm   1/1     Running   2 (25m ago)   24h   10.244.1.6   devops-lab-worker2   <none>           <none>
+self-healing-app-57888f6c64-h2lvz   1/1     Running   0             7s    10.244.2.9   devops-lab-worker    <none>           <none>
+self-healing-app-57888f6c64-sdqzg   1/1     Running   2 (25m ago)   24h   10.244.2.5   devops-lab-worker    <none>           <none>
